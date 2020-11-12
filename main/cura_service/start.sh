@@ -1,0 +1,2 @@
+# /CuraEngine/build/CuraEngine slice -p -j /CuraEngine/main/fdmprinter.def.json -j /CuraEngine/main/creality_base.def.json -j /CuraEngine/main/creality_cr10.def.json -s infill_before_wall=true -s relative_extrusion=true -l /CuraEngine/main/square.stl -o /CuraEngine/main/square.gcode
+/CuraEngine/build/CuraEngine slice -p -j /CuraEngine/main/fdmprinter.def.json -j /CuraEngine/main/prusa_i3.def.json -j /CuraEngine/main/fdmextruder.def.json -j /CuraEngine/main/prusa_i3_extruder_0.def.json  -s relative_extrusion=true -l /CuraEngine/main/square.stl -o /CuraEngine/main/square.gcode

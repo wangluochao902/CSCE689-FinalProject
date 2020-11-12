@@ -1,0 +1,12 @@
+__pycache__
+.vscode
+frontendTest
+CuraEngine
+gradient.gcode
+gradient2.gcode
+zzz.py
+*.stl
+*.gcode
+start_container.sh
+addGradientInfillInv.py
+addGradientInfilll.py
