@@ -31,7 +31,7 @@ def hello_world():
 
 
 @app.route("/gradientInfill", methods=["GET", "POST"])
-def checkcommand():
+def gradientInfill():
     stl_file, gradient_setting, print_setting = (
         request.json["stl_file"],
         request.json["gradient_setting"],
@@ -41,11 +41,11 @@ def checkcommand():
         "max_flow",
         "min_flow",
         "enable_gradient",
-        "infill_targets",
+        "infill_targets"
     }
     if set(gradient_setting.keys()) != needed_keys:
         return (
-            f"Some setting keys of {''.join(list(needed_keys))} are not given or other setting are given",
+            f"Some setting keys of {' '.join(list(needed_keys))} are not given or other setting are given",
             500,
         )
 
@@ -67,8 +67,11 @@ def checkcommand():
     else:
         infill_line_distance = (infill_line_width * 100) / infill_sparse_density
 
+    if print_setting['infill_pattern'] not in ('lines', 'grid', 'gyroid'):
+        return f"Only 'lines' and 'gyroid' infill pattern are supported", 500
+
     print_setting_string = (
-        f'-s infill_line_distance={infill_line_distance}'
+        f'-s infill_line_distance={infill_line_distance} -s infill_pattern={print_setting["infill_pattern"]}'
     )
     p = subprocess.Popen(
         [
@@ -80,6 +83,11 @@ def checkcommand():
     p_status = p.wait()
     # we are using ender 3. In the machine definition file, its ``machine_width=220`` and ``machine_depth=220``
     # So the center is [110, 110]`
+
+    if print_setting['infill_pattern'] in ('lines', 'grid'):
+        infill_type = InfillType.LINEAR
+    else:
+        infill = InfillType.SMALL_SEGMENTS
     if gradient_setting["infill_targets"]:
         for target in gradient_setting['infill_targets']:
             target[0] += 110
@@ -87,7 +95,7 @@ def checkcommand():
         process_gcode(
             gcode_out_path,
             processed_gcode_path,
-            infill_type=InfillType.SMALL_SEGMENTS,
+            infill_type=infill_type,
             **gradient_setting,
         )
         final_gcode_path = processed_gcode_path
