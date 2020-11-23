@@ -11,7 +11,7 @@ The backend service uses the following dependencies:
   1. [CuraEngine](https://github.com/Ultimaker/CuraEngine): This is used to slice the stl file received from the frontend.
   2. [Flask](https://flask.palletsprojects.com/en/1.1.x/): This is used to start the backend service.
   3. Docker: This is required to set up CuraEngine for faster local development. If you prefer setup CuraEngine locally without docker, refer to [CuraEngine](https://github.com/Ultimaker/CuraEngine)
-  4. Credits to [GradientInfill(https://github.com/CNCKitchen/GradientInfill) project. This project adapts parts of the codes from them for Gcode postprocessing.
+  4. Credits to [GradientInfill](https://github.com/CNCKitchen/GradientInfill) project. This project adapts parts of the codes from them for Gcode postprocessing.
   5. For deployment, this project uses the Cloud Run service in Google Cloud Platfrom.
 
 This backend service listens on the request from the frontend. Upon receiving a request which contains a stl file, along with printing settings and gradient settings, it will starts the CuraEngine with the printing setting to slice the stl file and produce the Gcode. When the slicing is done, it will start the postprocessing using the gradient setting and then sends back the processed gcode to the frontend.
