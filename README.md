@@ -2,16 +2,23 @@
 # Interactive Infill Reinforcement - Backend
 
 ## Team members
-Nelson Dsouza - Front-end development
+Nelson Dsouza - Front-end development: Can be found @ [Github Link](https://github.tamu.edu/dso-nelson/CSCE689-Final-Team-Pumpkin)
 
-Luochao Wang - Back-end development
+Luochao Wang - Back-end development: Contents are in this repository.
 
 ### General information
-This project contains 2 components:
-  
-  1. Three JS interactive webpage (Front-end): can be found @ [Github Link](https://github.tamu.edu/dso-nelson/CSCE689-Final-Team-Pumpkin).
-  2. CuraEngine and Python postprocessing Server (Back-end): contents are in this repository.
+The backend service uses the following dependencies:
+  1. [CuraEngine](https://github.com/Ultimaker/CuraEngine): This is used to slice the stl file received from the frontend.
+  2. [Flask](https://flask.palletsprojects.com/en/1.1.x/): This is used to start the backend service.
+  3. Docker: This is required to set up CuraEngine for faster local development. If you prefer setup CuraEngine locally without docker, refer to [CuraEngine](https://github.com/Ultimaker/CuraEngine)
+  4. Credits to [GradientInfill(https://github.com/CNCKitchen/GradientInfill) project. This project adapts parts of the codes from them for Gcode postprocessing.
+  5. For deployment, this project uses the Cloud Run service in Google Cloud Platfrom.
 
+This backend service listens on the request from the frontend. Upon receiving a request which contains a stl file, along with printing settings and gradient settings, it will starts the CuraEngine with the printing setting to slice the stl file and produce the Gcode. When the slicing is done, it will start the postprocessing using the gradient setting and then sends back the processed gcode to the frontend.
+
+![Diagram](flowchart.svg)
+
+The current service by default supports Creality Ender 3 printer. To support more printers, you should add new resource definition and extruder to the `main` foler and the modify the `main\cura_service\gradient_infill\defaults.py` script. Refer to [resorces](https://github.com/Ultimaker/Cura/tree/master/resources) for currently available definitions and extruder.
 ## Get Started
 ### Local server development (require docker installed)
   1. Clone the repo `git clone https://github.com/wangluochao902/CSCE689-FinalProject.git`
@@ -19,7 +26,7 @@ This project contains 2 components:
   3. Build image `cura` using the dockerfile `docker build . -t cura`
   4. Start a container by `docker run -it cura -p 5000:5000`
   5. Now you backend is started at `http:127.0.0.1:5000`. You can change the url in frontend for communication, e.g. `http://127.0.0.1:5000/gradientInfill` 
-  An example for talking to backend server from the frontend:
+  An example for talking to backend server from the frontend is shown below:
   ```
   // Read a local stl model and send it the the backend.
   // The backend server will process the stl file and return the processed Gcode.
