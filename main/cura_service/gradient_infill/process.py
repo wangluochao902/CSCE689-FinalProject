@@ -148,7 +148,7 @@ def get_extrusion_command(x: float, y: float, extrusion: float) -> str:
     Returns:
         str: Gcode line
     """
-    return "G1 X{} Y{} E{}".format(round(x, 3), round(y, 3), round(extrusion, 5))
+    return "G1 X{} Y{} E{:.5f}".format(round(x, 3), round(y, 3), extrusion)
 
 def is_begin_layer_line(line: str) -> bool:
     """Check if current line is the start of a layer section.
@@ -238,16 +238,18 @@ def process_gcode(
 ) -> None:
     """Parse input Gcode file and modify infill portions with an extrusion width gradient."""
     currentSection = Section.NOTHING
+    if not enable_gradient:
+        gradient_discretization = 1
     lastPosition = Point2D(-10000, -10000)
     min_radius = min([t[-1] for t in infill_targets])
     gradientDiscretizationLength = min_radius / gradient_discretization
     current_layer_number = 0
-    effective_infill_targets = []
+    layer_infill_targets = []
 
     with open(input_file_name, "r") as gcodeFile, open(output_file_name, "w+") as outputFile:
         stop_processing = False
         print(infill_targets)
-        for currentLine in gcodeFile:
+        for line_num, currentLine in enumerate(gcodeFile):
             if stop_processing:
                 outputFile.write(currentLine)
                 continue
@@ -256,11 +258,11 @@ def process_gcode(
             if is_begin_layer_line(currentLine):
                 perimeterSegments = []
                 current_layer_number = int(currentLine.split(":")[-1])
-                effective_infill_targets = []
+                layer_infill_targets = []
                 for target in infill_targets:
                     if target[2] <= current_layer_number * layer_height < target[2] + target[3]:
-                        effective_infill_targets.append(target)
-                # print("effective:", effective_infill_targets)
+                        layer_infill_targets.append(target)
+                # print("effective:", layer_infill_targets)
 
             if is_begin_inner_wall_line(currentLine):
                 currentSection = Section.INNER_WALL
@@ -313,7 +315,11 @@ def process_gcode(
                             )
                             newE = extrusionLengthPerSegment * min_flow / 100
                             segmentFeed = current_feed / (min_flow / 100)
-                            for target in effective_infill_targets:
+                            # Optimization: first find out effective target from layer_infill_target:
+                            effect_infill_targets = []
+                            # for target in layer_infill_targets:
+
+                            for target in layer_infill_targets:
                                 dist = min_distance_from_target_points(Segment(lastPosition, segmentEnd), [Point2D(target[0], target[1])])
                                 if dist < target[4]:
                                     if enable_gradient:
@@ -339,7 +345,7 @@ def process_gcode(
                         segmentLengthRatio = get_points_distance(lastPosition, currentPosition) / segmentLength
                         newE = extrusionLength * segmentLengthRatio * min_flow / 100
                         segmentFeed = current_feed / (min_flow / 100)
-                        for target in effective_infill_targets:
+                        for target in layer_infill_targets:
                             dist = min_distance_from_target_points(Segment(lastPosition, currentPosition), [Point2D(target[0], target[1])])
                             if dist < target[4]:
                                 if enable_gradient:
@@ -360,8 +366,8 @@ def process_gcode(
                                 segmentFeed = current_feed * min_over_speed_factor/100
                             stringFeed = " F{}".format(int(segmentFeed))
                         segmentFeed = current_feed / ( max_flow / 100 )
-                        if segmentFeed < (current_feed * min_over_speed_factor):
-                            segmentFeed = current_feed * min_over_speed_factor
+                        if segmentFeed < (current_feed * min_over_speed_factor/100):
+                            segmentFeed = current_feed * min_over_speed_factor/100
                         if gradual_speed:
                             stringFeed = " F{}".format(int(segmentFeed))
                                             
@@ -372,15 +378,6 @@ def process_gcode(
                                 newE,
                             ) + stringFeed + '\n'
                         )
-                        # else:
-                        #     outPutLine = ""
-                        #     for element in splitLine:
-                        #         if "E" in element:
-                        #             outPutLine = outPutLine + "E" + str(round(extrusionLength * max_flow / 100, 5))
-                        #         else:
-                        #             outPutLine = outPutLine + element + " "
-                        #     outPutLine = outPutLine + "\n"
-                        #     outputFile.write(outPutLine)
                         writtenToFile = 1
 
                     # gyroid or honeycomb
@@ -390,7 +387,7 @@ def process_gcode(
                             if "E" in element:
                                 newE = float(element[1:]) * min_flow / 100
                                 segmentFeed = current_feed / (min_flow / 100)
-                                for target in effective_infill_targets:
+                                for target in layer_infill_targets:
                                     dist = min_distance_from_target_points(Segment(lastPosition, currentPosition), [Point2D(target[0], target[1])])
                                     if dist < target[4]:
                                         if enable_gradient:
@@ -429,52 +426,6 @@ def process_gcode(
             # write uneditedLine
             if writtenToFile == 0:
                 outputFile.write(currentLine)
-
-{
-  "eSegTypeColor_Unknown": "ff999999",
-  "eSegTypeColor_Grayed": "505050",
-  "eSegTypeColor_Perimeter": "ffffffff",
-  "eSegTypeColor_Loop": "ffef3f50",
-  "eSegTypeColor_HShell": "ff1495be",
-  "eSegTypeColor_Infill": "ff79b500",
-  "eSegTypeColor_Support": "bd9f53",
-  "eSegTypeColor_SoftSupport": "d82fab",
-  "eSegTypeColor_SupportTouch": "ff007f",
-  "eSegTypeColor_Skirt": "ff5500",
-  "eSegTypeColor_Raft": "aa8837",
-  "eSegTypeColor_OuterHair": "ff3ea7ab",
-  "eSegTypeColor_InnerHair": "ff106699",
-  "eSegTypeColor_Pillar": "55557f",
-  "eSegTypeColor_Travel": "ffff00",
-  "eExtrusionRateColor_0": "ff000003",
-  "eExtrusionRateColor_1": "ff000081",
-  "eExtrusionRateColor_2": "ff0000ff",
-  "eExtrusionRateColor_3": "ff0074fc",
-  "eExtrusionRateColor_4": "ff00eafd",
-  "eExtrusionRateColor_5": "ff00fe76",
-  "eExtrusionRateColor_6": "ff01fe00",
-  "eExtrusionRateColor_7": "ff77fd00",
-  "eExtrusionRateColor_8": "fff0fd00",
-  "eExtrusionRateColor_9": "fffe9e00",
-  "eExtrusionRateColor_10": "fffe2401",
-  "eExtrusionRateColor_11": "fffe2432",
-  "eFeedRateColor_0": "ff0031db",
-  "eFeedRateColor_1": "ff0f74ff",
-  "eFeedRateColor_2": "ff27c3e0",
-  "eFeedRateColor_3": "ff41e3c0",
-  "eFeedRateColor_4": "ff68f695",
-  "eFeedRateColor_5": "ffb1ee4d",
-  "eFeedRateColor_6": "ffddcb27",
-  "eFeedRateColor_7": "fff59818",
-  "eFeedRateColor_8": "fff95507",
-  "eFeedRateColor_9": "ffcd2c01",
-  "eFeedRateColor_10": "ff8c1400",
-  "eToolHeadColor_0": "ff00aa00",
-  "eToolHeadColor_1": "ffaa007f",
-  "eToolHeadColor_2": "ffcc5fde",
-  "eToolHeadColor_3": "ff2ea03c",
-  "eToolHeadColor_4": "ff3030db",
-  "eToolHeadColor_5": "ffcacd2d",
-  "eToolHeadColor_6": "ffcc7122",
-  "eToolHeadColor_7": "ff7b7b7a"
-}
+            
+            if line_num % 200 == 0:
+                print(f"line number is {line_num}")

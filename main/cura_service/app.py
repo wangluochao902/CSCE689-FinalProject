@@ -24,10 +24,11 @@ CORS(
     },
 )
 
-@app.route('/')
+
+@app.route("/")
 def hello_world():
-    name = os.environ.get('NAME', 'World')
-    return 'Hello {}!'.format(name)
+    name = os.environ.get("NAME", "World")
+    return "Hello {}!".format(name)
 
 
 @app.route("/gradientInfill", methods=["GET", "POST"])
@@ -37,20 +38,40 @@ def gradientInfill():
         request.json["gradient_setting"],
         request.json["print_setting"],
     )
-    needed_keys = {
-        "max_flow",
-        "min_flow",
-        "enable_gradient",
-        "infill_targets"
-    }
+    needed_keys = {"max_flow", "min_flow", "enable_gradient", "infill_targets", "gradient_discretization"}
+
+    for key in needed_keys:
+        if key not in gradient_setting:
+            return f"Missing key {key} in gradient_setting", 500
+
     if set(gradient_setting.keys()) != needed_keys:
         return (
             f"Some setting keys of {' '.join(list(needed_keys))} are not given or other setting are given",
             500,
         )
 
-    if "infill_sparse_density" not in print_setting:
-        return f"Missing 'infill_sparse_density'", 500
+    special_print_setting_keys = [
+        "infill_sparse_density",
+        "disable_top_bottom_layers",
+        "other_setting_string"]
+    normal_print_setting_keys = [
+        "infill_pattern",
+        "adhesion_type",
+        "retraction_enable",
+        "retraction_enable",
+        "speed_print",
+        "speed_infill",
+        "speed_wall",
+        "material_print_temperature",
+        "material_print_temperature_layer_0",
+        "material_initial_print_temperature",
+        "material_final_print_temperature",
+        "material_bed_temperature",
+        "material_bed_temperature_layer_0"
+    ]
+    for key in special_print_setting_keys + normal_print_setting_keys:
+        if key not in print_setting:
+            return f"Missing key {key} in print_seting", 500
 
     stl_path = os.path.join(TMP_DIR, "stl_file.stl")
     gcode_out_path = os.path.join(TMP_DIR, "gcode_out.gcode")
@@ -67,29 +88,36 @@ def gradientInfill():
     else:
         infill_line_distance = (infill_line_width * 100) / infill_sparse_density
 
-    if print_setting['infill_pattern'] not in ('lines', 'grid', 'gyroid'):
+    if print_setting["infill_pattern"] not in ("lines", "grid", "gyroid"):
         return f"Only 'lines' and 'gyroid' infill pattern are supported", 500
 
-    print_setting_string = (
-        f'-s infill_line_distance={infill_line_distance} -s infill_pattern={print_setting["infill_pattern"]}'
-    )
+    print_setting_string = f'-s infill_line_distance={infill_line_distance}'
+
+    if print_setting["disable_top_bottom_layers"]:
+        print_setting_string += (
+            " -s top_layers=0 -s bottom_layers=0"
+        )
+    print_setting_string = ' '.join([print_setting_string] + [f'-s {key}={print_setting[key]}' for key in normal_print_setting_keys])
+    print_setting_string += ' ' + print_setting["other_setting_string"]
+    print_setting_string = print_setting_string.replace("=True", "=true")
+    print("\n\n\nall the print setting is: ", print_setting_string, "\n\n\n")
     p = subprocess.Popen(
         [
             f"{CURA_ENGINE_COMMAND} {print_setting_string} -l {stl_path} -o {gcode_out_path}"
         ],
         shell=True,
     )
-    # p = subprocess.Popen([f"ls /root"], )
+
     p_status = p.wait()
     # we are using ender 3. In the machine definition file, its ``machine_width=220`` and ``machine_depth=220``
     # So the center is [110, 110]`
 
-    if print_setting['infill_pattern'] in ('lines', 'grid'):
+    if print_setting["infill_pattern"] in ("lines", "grid"):
         infill_type = InfillType.LINEAR
     else:
-        infill = InfillType.SMALL_SEGMENTS
+        infill_type = InfillType.SMALL_SEGMENTS
     if gradient_setting["infill_targets"]:
-        for target in gradient_setting['infill_targets']:
+        for target in gradient_setting["infill_targets"]:
             target[0] += 110
             target[1] += 110
         process_gcode(
@@ -103,6 +131,7 @@ def gradientInfill():
         gcode = f.read()
     return jsonify({"gradient_gcode": gcode})
 
+
 if __name__ == "__main__":
     # use 0.0.0.0 to use it in container
-    app.run(host='0.0.0.0', debug=True, port=5000)
+    app.run(host="0.0.0.0", debug=True, port=5000)
